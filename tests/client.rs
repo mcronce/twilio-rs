@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, time::Duration};
 use twilio::{Client, OutboundMessage};
 
 #[tokio::test]
@@ -11,8 +11,22 @@ async fn send_sms() {
     let to = env::var("TO").expect("Find TO environment variable");
 
     let client = Client::new(&account_id, &auth_token);
-    client
+    let msg_sid = client
         .send_message(OutboundMessage::new(&from, &to, "Hello, World!"))
         .await
-        .expect("to send message");
+        .expect("to send message")
+        .sid;
+
+    tokio::time::sleep(Duration::from_secs(7)).await;
+
+    let status = client
+        .get_message_status(&msg_sid)
+        .await
+        .expect("getting message status")
+        .status
+        .expect("Didn't get a status back");
+
+    println!("STATUS: {:?}", &status);
+
+    assert!(matches!(status, twilio::MessageStatus::sent));
 }
