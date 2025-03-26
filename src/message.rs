@@ -1,4 +1,4 @@
-use crate::{Client, FromMap, TwilioError, GET, POST};
+use crate::{Client, FromMap, TwilioError, POST};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
