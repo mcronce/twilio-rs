@@ -11,6 +11,6 @@ impl Action for Redirect {
             Method::Get => "GET",
             Method::Post => "POST",
         };
-        format_xml_string("Redirect", &vec![("method", method_str)], &self.url)
+        format_xml_string("Redirect", &[("method", method_str)], &self.url)
     }
 }

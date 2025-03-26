@@ -21,7 +21,7 @@ impl Action for Say {
         };
         format_xml_string(
             "Say",
-            &vec![("voice", voice_str), ("language", &self.language)],
+            &[("voice", voice_str), ("language", &self.language)],
             &self.txt,
         )
     }

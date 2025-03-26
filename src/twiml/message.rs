@@ -6,6 +6,6 @@ pub struct Message {
 
 impl Action for Message {
     fn as_twiml(&self) -> String {
-        format_xml_string("Message", &vec![], &self.txt)
+        format_xml_string("Message", &[], &self.txt)
     }
 }

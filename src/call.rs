@@ -37,11 +37,7 @@ pub struct Call {
 
 impl Client {
     pub async fn make_call(&self, call: OutboundCall<'_>) -> Result<Call, TwilioError> {
-        let opts = [
-            ("To", &*call.to),
-            ("From", &*call.from),
-            ("Url", &*call.url),
-        ];
+        let opts = [("To", call.to), ("From", call.from), ("Url", call.url)];
         self.send_request(POST, "Calls", &opts).await
     }
 }

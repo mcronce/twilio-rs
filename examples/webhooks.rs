@@ -16,7 +16,7 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
         "/message" => {
             client
                 .respond_to_webhook(req, |msg: twilio::Message| {
-                    let mut t = Twiml::new();
+                    let mut t = Twiml::default();
                     t.add(&twilio::twiml::Message {
                         txt: format!("You told me: '{}'", msg.body.unwrap()),
                     });
@@ -27,7 +27,7 @@ async fn handle(req: Request<Body>) -> Result<Response<Body>, Infallible> {
         "/call" => {
             client
                 .respond_to_webhook(req, |_: twilio::Call| {
-                    let mut t = Twiml::new();
+                    let mut t = Twiml::default();
                     t.add(&Say {
                         txt: "Thanks for using twilio-rs. Bye!".to_string(),
                         voice: Voice::Woman,

@@ -18,17 +18,12 @@ pub trait Action {
     fn as_twiml(&self) -> String;
 }
 
+#[derive(Default)]
 pub struct Twiml {
     body: String,
 }
 
 impl Twiml {
-    pub fn new() -> Twiml {
-        Twiml {
-            body: "".to_string(),
-        }
-    }
-
     pub fn add(&mut self, a: &dyn Action) -> &mut Twiml {
         let twiml = a.as_twiml();
         self.body.push_str((&twiml as &dyn AsRef<str>).as_ref());
@@ -51,7 +46,7 @@ fn format_xml_string(tag: &str, attributes: &[(&str, &str)], inner: &str) -> Str
             .iter()
             .map(|t| format!("{}=\"{}\"", t.0, t.1))
             .fold("".to_string(), |mut acc, v| {
-                acc.push_str(" ");
+                acc.push(' ');
                 acc.push_str(&v);
                 acc
             }),

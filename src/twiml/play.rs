@@ -1,14 +1,12 @@
 use super::{format_xml_string, Action};
 use std::char::from_digit;
 
+#[derive(Default)]
 pub struct Digits {
     s: String,
 }
 
 impl Digits {
-    pub fn new() -> Digits {
-        Digits { s: "".to_string() }
-    }
     pub fn add(&mut self, d: u32) -> &mut Digits {
         self.s.push(from_digit(d, 10).unwrap());
         self

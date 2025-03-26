@@ -106,8 +106,8 @@ impl Client {
             .body(Body::from(url_encode(params)))
             .unwrap();
 
-        let mime: mime::Mime = "application/x-www-form-urlencoded".parse().unwrap();
-        req.headers_mut().typed_insert(ContentType::from(mime));
+        req.headers_mut()
+            .typed_insert(ContentType::from(mime::APPLICATION_WWW_FORM_URLENCODED));
         req.headers_mut().typed_insert(self.auth_header.clone());
 
         let resp = self
