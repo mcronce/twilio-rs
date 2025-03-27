@@ -1,6 +1,7 @@
 use core::num::NonZeroU32;
 
-use arrayvec::ArrayString;
+use arrayvec::{ArrayString, ArrayVec};
+use bitflags::bitflags;
 use compact_str::CompactString;
 use headers::HeaderMapExt;
 use hyper::Body;
@@ -61,8 +62,7 @@ pub struct PhoneNumberInfo {
     pub url: String,
     pub valid: bool,
     #[serde(default)]
-    // TODO:  bitflags
-    pub validation_errors: Vec<ValidationError>,
+    pub validation_errors: ValidationErrors,
 }
 
 #[derive(Debug, Deserialize)]
@@ -114,29 +114,60 @@ impl<'de> Deserialize<'de> for NumberType {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ValidationError {
-    TooShort,
-    TooLong,
-    InvalidButPossible,
-    InvalidCountryCode,
-    InvalidLength,
-    NotANumber,
+bitflags! {
+    #[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+    pub struct ValidationErrors: u8 {
+        const TooShort = 0x01;
+        const TooLong = 0x02;
+        const InvalidButPossible = 0x04;
+        const InvalidCountryCode = 0x08;
+        const InvalidLength = 0x10;
+        const NotANumber = 0x20;
+    }
 }
 
-impl<'de> Deserialize<'de> for ValidationError {
+impl<'de> Deserialize<'de> for ValidationErrors {
     #[inline]
     fn deserialize<D: Deserializer<'de>>(de: D) -> Result<Self, D::Error> {
-        let s = <&str>::deserialize(de)?;
-        let this = match s {
-            "TOO_SHORT" => Self::TooShort,
-            "TOO_LONG" => Self::TooLong,
-            "INVALID_BUT_POSSIBLE" => Self::InvalidButPossible,
-            "INVALID_COUNTRY_CODE" => Self::InvalidCountryCode,
-            "INVALID_LENGTH" => Self::InvalidLength,
-            "NOT_A_NUMBER" => Self::NotANumber,
-            s => return Err(D::Error::custom(format!("Unknown validation error '{s}'"))),
-        };
-        Ok(this)
+        let strings = <ArrayVec<&str, 6>>::deserialize(de)?;
+
+        let mut result = Self::default();
+        for string in strings {
+            let this_flag = match string {
+                "TOO_SHORT" => Self::TooShort,
+                "TOO_LONG" => Self::TooLong,
+                "INVALID_BUT_POSSIBLE" => Self::InvalidButPossible,
+                "INVALID_COUNTRY_CODE" => Self::InvalidCountryCode,
+                "INVALID_LENGTH" => Self::InvalidLength,
+                "NOT_A_NUMBER" => Self::NotANumber,
+                s => return Err(D::Error::custom(format!("Unknown validation error '{s}'"))),
+            };
+            result |= this_flag;
+        }
+
+        Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deserialize_validation_errors() {
+        let s = r#"["TOO_SHORT"]"#;
+        let result: ValidationErrors = serde_json::from_str(s).unwrap();
+        assert_eq!(result, ValidationErrors::TooShort);
+
+        let s = r#"["NOT_A_NUMBER", "INVALID_COUNTRY_CODE"]"#;
+        let result: ValidationErrors = serde_json::from_str(s).unwrap();
+        assert_eq!(
+            result,
+            ValidationErrors::InvalidCountryCode | ValidationErrors::NotANumber
+        );
+
+        let s = r#"["TOO_SHORT", "TOO_LONG", "INVALID_BUT_POSSIBLE", "INVALID_COUNTRY_CODE", "INVALID_LENGTH", "NOT_A_NUMBER"]"#;
+        let result: ValidationErrors = serde_json::from_str(s).unwrap();
+        assert_eq!(result, ValidationErrors::all());
     }
 }
