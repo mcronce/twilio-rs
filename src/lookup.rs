@@ -59,7 +59,7 @@ pub struct PhoneNumberInfo {
     // pub reassigned_number: object|null,
     // pub sim_swap: object|null,
     // pub sms_pumping_risk: object|null,
-    pub url: String,
+    // pub url: String,
     pub valid: bool,
     #[serde(default)]
     pub validation_errors: ValidationErrors,
