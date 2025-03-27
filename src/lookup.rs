@@ -1,7 +1,10 @@
 use core::num::NonZeroU32;
 
+use arrayvec::ArrayString;
+use compact_str::CompactString;
 use headers::HeaderMapExt;
 use hyper::Body;
+use isocountry::CountryCode;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 
@@ -43,13 +46,13 @@ impl Client {
 pub struct PhoneNumberInfo {
     // pub call_forwarding: object|null,
     // pub caller_name: object|null,
-    pub calling_country_code: String,
-    pub country_code: String,
+    pub calling_country_code: ArrayString<3>,
+    pub country_code: CountryCode,
     // pub identity_match: object|null,
     // pub line_status: object|null,
     pub line_type_intelligence: Option<LineTypeIntelligence>,
-    pub national_format: String,
-    pub phone_number: String,
+    pub national_format: CompactString,
+    pub phone_number: CompactString,
     // pub phone_number_quality_score: object|null,
     // pub pre_fill: object|null,
     // pub reassigned_number: object|null,
@@ -64,10 +67,10 @@ pub struct PhoneNumberInfo {
 
 #[derive(Debug, Deserialize)]
 pub struct LineTypeIntelligence {
-    pub carrier_name: String,
+    pub carrier_name: CompactString,
     pub error_code: Option<NonZeroU32>,
-    pub mobile_country_code: String,
-    pub mobile_network_code: String,
+    pub mobile_country_code: ArrayString<3>,
+    pub mobile_network_code: ArrayString<6>,
     #[serde(rename = "type")]
     pub kind: NumberType,
 }
