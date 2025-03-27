@@ -1,4 +1,5 @@
 mod call;
+pub mod lookup;
 mod message;
 pub mod twiml;
 mod webhook;
