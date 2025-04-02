@@ -1,9 +1,79 @@
 use crate::{Client, FromMap, TwilioError};
+use core::fmt;
+use core::str::FromStr;
 use headers::{HeaderMapExt, Host};
 use hmac::{Hmac, Mac};
 use hyper::{Body, Method, Request};
 use sha1::Sha1;
 use std::collections::BTreeMap;
+
+#[derive(Debug)]
+pub enum MessageStatus {
+    Queued,
+    Sending,
+    Sent,
+    Failed,
+    Delivered,
+    Undelivered,
+    Receiving,
+    Received,
+    Accepted,
+    Scheduled,
+    Read,
+    PartiallyDelivered,
+    Canceled,
+}
+
+impl fmt::Display for MessageStatus {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Queued => "queued",
+            Self::Sending => "sending",
+            Self::Sent => "sent",
+            Self::Failed => "failed",
+            Self::Delivered => "delivered",
+            Self::Undelivered => "undelivered",
+            Self::Receiving => "receiving",
+            Self::Received => "received",
+            Self::Accepted => "accepted",
+            Self::Scheduled => "scheduled",
+            Self::Read => "read",
+            Self::PartiallyDelivered => "partially_delivered",
+            Self::Canceled => "canceled",
+        };
+        f.write_str(s)
+    }
+}
+
+impl FromStr for MessageStatus {
+    type Err = InvalidMessageStatus;
+
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let this = match s {
+            "queued" => Self::Queued,
+            "sending" => Self::Sending,
+            "sent" => Self::Sent,
+            "failed" => Self::Failed,
+            "delivered" => Self::Delivered,
+            "undelivered" => Self::Undelivered,
+            "receiving" => Self::Receiving,
+            "received" => Self::Received,
+            "accepted" => Self::Accepted,
+            "scheduled" => Self::Scheduled,
+            "read" => Self::Read,
+            "partially_delivered" => Self::PartiallyDelivered,
+            "canceled" => Self::Canceled,
+            _ => return Err(InvalidMessageStatus(s.to_owned())),
+        };
+        Ok(this)
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("Invalid Twilio message status '{0}'")]
+pub struct InvalidMessageStatus(String);
 
 fn get_args(path: &str) -> BTreeMap<String, String> {
     let url_segments: Vec<&str> = path.split('?').collect();
