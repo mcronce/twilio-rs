@@ -7,7 +7,7 @@ use hyper::{Body, Method, Request};
 use sha1::Sha1;
 use std::collections::BTreeMap;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum MessageStatus {
     Queued,
     Sending,
