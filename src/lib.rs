@@ -2,7 +2,7 @@ mod call;
 pub mod lookup;
 mod message;
 pub mod twiml;
-mod webhook;
+pub mod webhook;
 
 pub use call::{Call, OutboundCall};
 use headers::authorization::{Authorization, Basic};
