@@ -4,10 +4,12 @@ use core::str::FromStr;
 use headers::{HeaderMapExt, Host};
 use hmac::{Hmac, Mac};
 use hyper::{Body, Method, Request};
+use serde::{Deserialize, Serialize};
 use sha1::Sha1;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum MessageStatus {
     Queued,
     Sending,
