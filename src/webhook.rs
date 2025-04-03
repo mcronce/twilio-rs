@@ -26,10 +26,10 @@ pub enum MessageStatus {
     Canceled,
 }
 
-impl fmt::Display for MessageStatus {
+impl AsRef<str> for MessageStatus {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
+    fn as_ref(&self) -> &str {
+        match self {
             Self::Queued => "queued",
             Self::Sending => "sending",
             Self::Sent => "sent",
@@ -43,8 +43,14 @@ impl fmt::Display for MessageStatus {
             Self::Read => "read",
             Self::PartiallyDelivered => "partially_delivered",
             Self::Canceled => "canceled",
-        };
-        f.write_str(s)
+        }
+    }
+}
+
+impl fmt::Display for MessageStatus {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_ref())
     }
 }
 
