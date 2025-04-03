@@ -54,28 +54,35 @@ impl fmt::Display for MessageStatus {
     }
 }
 
+impl MessageStatus {
+    #[inline]
+    pub fn from_bytes(s: &[u8]) -> Result<Self, InvalidMessageStatus> {
+        let this = match s {
+            b"queued" => Self::Queued,
+            b"sending" => Self::Sending,
+            b"sent" => Self::Sent,
+            b"failed" => Self::Failed,
+            b"delivered" => Self::Delivered,
+            b"undelivered" => Self::Undelivered,
+            b"receiving" => Self::Receiving,
+            b"received" => Self::Received,
+            b"accepted" => Self::Accepted,
+            b"scheduled" => Self::Scheduled,
+            b"read" => Self::Read,
+            b"partially_delivered" => Self::PartiallyDelivered,
+            b"canceled" => Self::Canceled,
+            _ => return Err(InvalidMessageStatus(String::from_utf8_lossy(s).to_string())),
+        };
+        Ok(this)
+    }
+}
+
 impl FromStr for MessageStatus {
     type Err = InvalidMessageStatus;
 
     #[inline]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let this = match s {
-            "queued" => Self::Queued,
-            "sending" => Self::Sending,
-            "sent" => Self::Sent,
-            "failed" => Self::Failed,
-            "delivered" => Self::Delivered,
-            "undelivered" => Self::Undelivered,
-            "receiving" => Self::Receiving,
-            "received" => Self::Received,
-            "accepted" => Self::Accepted,
-            "scheduled" => Self::Scheduled,
-            "read" => Self::Read,
-            "partially_delivered" => Self::PartiallyDelivered,
-            "canceled" => Self::Canceled,
-            _ => return Err(InvalidMessageStatus(s.to_owned())),
-        };
-        Ok(this)
+        Self::from_bytes(s.as_bytes())
     }
 }
 
