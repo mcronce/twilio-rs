@@ -7,6 +7,7 @@ pub mod webhook;
 pub use call::{Call, OutboundCall};
 use headers::authorization::{Authorization, Basic};
 use headers::{ContentType, HeaderMapExt};
+use hyper::body::HttpBody;
 use hyper::client::connect::HttpConnector;
 use hyper::{Body, Method, StatusCode};
 use hyper_tls::HttpsConnector;
@@ -122,10 +123,13 @@ impl Client {
             other => return Err(TwilioError::HTTPError(other)),
         };
 
-        let decoded: T = hyper::body::to_bytes(resp.into_body())
+        let decoded: T = resp
+            .into_body()
+            .collect()
             .await
             .map_err(TwilioError::NetworkError)
-            .and_then(|bytes| {
+            .and_then(|body| {
+                let bytes = body.to_bytes();
                 serde_json::from_slice(&bytes).map_err(|_| TwilioError::ParsingError)
             })?;
 
@@ -157,10 +161,13 @@ impl Client {
             other => return Err(TwilioError::HTTPError(other)),
         };
 
-        let decoded: T = hyper::body::to_bytes(resp.into_body())
+        let decoded: T = resp
+            .into_body()
+            .collect()
             .await
             .map_err(TwilioError::NetworkError)
-            .and_then(|bytes| {
+            .and_then(|body| {
+                let bytes = body.to_bytes();
                 serde_json::from_slice(&bytes).map_err(|_| TwilioError::ParsingError)
             })?;
 

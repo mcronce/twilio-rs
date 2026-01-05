@@ -19,7 +19,7 @@ bitflags = "2.9.0"
 compact_str = { version = "0.9.0", features = ["serde"] }
 headers = "0.3.2"
 hmac = "0.12"
-hyper = { version = "0.14", features = ["client", "http1", "http2"] }
+hyper = { version = "0.14", features = ["client", "http1", "http2", "deprecated"] }
 hyper-tls = "0.5"
 isocountry = "0.3.2"
 mime = "0.3"

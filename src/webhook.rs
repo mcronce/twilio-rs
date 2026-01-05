@@ -3,6 +3,7 @@ use core::fmt;
 use core::str::FromStr;
 use headers::{HeaderMapExt, Host};
 use hmac::{Hmac, Mac};
+use hyper::body::HttpBody;
 use hyper::{Body, Method, Request};
 use serde::{Deserialize, Serialize};
 use sha1::Sha1;
@@ -115,9 +116,11 @@ impl Client {
             .and_then(|d| base64::decode(d.as_bytes()).map_err(|_| TwilioError::BadRequest))?;
 
         let (parts, body) = req.into_parts();
-        let body = hyper::body::to_bytes(body)
+        let body = body
+            .collect()
             .await
-            .map_err(TwilioError::NetworkError)?;
+            .map_err(TwilioError::NetworkError)?
+            .to_bytes();
         let host = match parts.headers.typed_get::<Host>() {
             None => return Err(TwilioError::BadRequest),
             Some(h) => h.hostname().to_string(),

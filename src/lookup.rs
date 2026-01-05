@@ -4,6 +4,7 @@ use arrayvec::{ArrayString, ArrayVec};
 use bitflags::bitflags;
 use compact_str::CompactString;
 use headers::HeaderMapExt;
+use hyper::body::HttpBody;
 use hyper::Body;
 use isocountry::CountryCode;
 use serde::de::Error;
@@ -32,10 +33,13 @@ impl Client {
             return Err(TwilioError::HTTPError(status));
         }
 
-        let decoded = hyper::body::to_bytes(resp.into_body())
+        let decoded = resp
+            .into_body()
+            .collect()
             .await
             .map_err(TwilioError::NetworkError)
-            .and_then(|bytes| {
+            .and_then(|body| {
+                let bytes = body.to_bytes();
                 serde_json::from_slice(&bytes).map_err(|_| TwilioError::ParsingError)
             })?;
 
