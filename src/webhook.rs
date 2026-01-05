@@ -3,8 +3,9 @@ use core::fmt;
 use core::str::FromStr;
 use headers::{HeaderMapExt, Host};
 use hmac::{Hmac, Mac};
-use hyper::body::HttpBody;
-use hyper::{Body, Method, Request};
+use http_body_util::BodyExt as _;
+use hyper::body::Incoming;
+use hyper::{Method, Request};
 use serde::{Deserialize, Serialize};
 use sha1::Sha1;
 use std::collections::BTreeMap;
@@ -107,7 +108,7 @@ fn args_from_urlencoded(enc: &[u8]) -> BTreeMap<String, String> {
 impl Client {
     pub async fn parse_request<T: FromMap>(
         &self,
-        req: Request<Body>,
+        req: Request<Incoming>,
     ) -> Result<Box<T>, TwilioError> {
         let expected = req
             .headers()
@@ -119,7 +120,7 @@ impl Client {
         let body = body
             .collect()
             .await
-            .map_err(TwilioError::NetworkError)?
+            .unwrap() // Full::Error is Infallible
             .to_bytes();
         let host = match parts.headers.typed_get::<Host>() {
             None => return Err(TwilioError::BadRequest),

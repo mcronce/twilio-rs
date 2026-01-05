@@ -4,13 +4,16 @@ mod message;
 pub mod twiml;
 pub mod webhook;
 
+use bytes::Bytes;
 pub use call::{Call, OutboundCall};
 use headers::authorization::{Authorization, Basic};
 use headers::{ContentType, HeaderMapExt};
-use hyper::body::HttpBody;
-use hyper::client::connect::HttpConnector;
-use hyper::{Body, Method, StatusCode};
+use http_body_util::{BodyExt as _, Either, Empty, Full};
+use hyper::body::Incoming;
+use hyper::{Method, StatusCode};
 use hyper_tls::HttpsConnector;
+use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::rt::TokioExecutor;
 pub use message::{Message, MessageStatus, OutboundMessage};
 use std::collections::BTreeMap;
 use std::error::Error;
@@ -26,7 +29,10 @@ pub struct Client {
     account_id: String,
     auth_token: String,
     auth_header: Authorization<Basic>,
-    http_client: hyper::Client<HttpsConnector<HttpConnector>>,
+    http_client: hyper_util::client::legacy::Client<
+        HttpsConnector<HttpConnector>,
+        Either<Empty<Bytes>, Full<Bytes>>,
+    >,
 }
 
 fn url_encode(params: &[(&str, &str)]) -> String {
@@ -40,7 +46,8 @@ fn url_encode(params: &[(&str, &str)]) -> String {
 
 #[derive(Debug)]
 pub enum TwilioError {
-    NetworkError(hyper::Error),
+    RequestError(hyper_util::client::legacy::Error),
+    ReadResponseError(hyper::Error),
     HTTPError(StatusCode),
     ParsingError,
     AuthError,
@@ -50,7 +57,8 @@ pub enum TwilioError {
 impl Display for TwilioError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            TwilioError::NetworkError(ref e) => e.fmt(f),
+            TwilioError::RequestError(ref e) => e.fmt(f),
+            TwilioError::ReadResponseError(ref e) => e.fmt(f),
             TwilioError::HTTPError(ref s) => write!(f, "Invalid HTTP status code: {}", s),
             TwilioError::ParsingError => f.write_str("Parsing error"),
             TwilioError::AuthError => f.write_str("Missing `X-Twilio-Signature` header in request"),
@@ -62,7 +70,8 @@ impl Display for TwilioError {
 impl Error for TwilioError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match *self {
-            TwilioError::NetworkError(ref e) => Some(e),
+            TwilioError::RequestError(ref e) => Some(e),
+            TwilioError::ReadResponseError(ref e) => Some(e),
             _ => None,
         }
     }
@@ -73,12 +82,13 @@ pub trait FromMap {
 }
 
 impl Client {
-    pub fn new(account_id: &str, auth_token: &str) -> Client {
+    pub fn new(account_id: &str, auth_token: &str) -> Self {
         Client {
             account_id: account_id.to_string(),
             auth_token: auth_token.to_string(),
             auth_header: Authorization::basic(account_id, auth_token),
-            http_client: hyper::Client::builder().build(HttpsConnector::new()),
+            http_client: hyper_util::client::legacy::Client::builder(TokioExecutor::new())
+                .build(HttpsConnector::new()),
         }
     }
 
@@ -105,7 +115,7 @@ impl Client {
         let mut req = hyper::Request::builder()
             .method(method)
             .uri(&*url)
-            .body(Body::from(url_encode(params)))
+            .body(Either::Right(Full::from(url_encode(params))))
             .unwrap();
 
         req.headers_mut()
@@ -116,7 +126,7 @@ impl Client {
             .http_client
             .request(req)
             .await
-            .map_err(TwilioError::NetworkError)?;
+            .map_err(TwilioError::RequestError)?;
 
         match resp.status() {
             StatusCode::CREATED | StatusCode::OK => {}
@@ -127,7 +137,7 @@ impl Client {
             .into_body()
             .collect()
             .await
-            .map_err(TwilioError::NetworkError)
+            .map_err(TwilioError::ReadResponseError)
             .and_then(|body| {
                 let bytes = body.to_bytes();
                 serde_json::from_slice(&bytes).map_err(|_| TwilioError::ParsingError)
@@ -145,7 +155,7 @@ impl Client {
             self.account_id, message_sid,
         );
         let mut req = hyper::Request::get(url)
-            .body(hyper::Body::from(""))
+            .body(Either::Left(Empty::new()))
             .unwrap();
 
         req.headers_mut().typed_insert(self.auth_header.clone());
@@ -154,7 +164,7 @@ impl Client {
             .http_client
             .request(req)
             .await
-            .map_err(TwilioError::NetworkError)?;
+            .map_err(TwilioError::RequestError)?;
 
         match resp.status() {
             StatusCode::OK => {}
@@ -165,7 +175,7 @@ impl Client {
             .into_body()
             .collect()
             .await
-            .map_err(TwilioError::NetworkError)
+            .map_err(TwilioError::ReadResponseError)
             .and_then(|body| {
                 let bytes = body.to_bytes();
                 serde_json::from_slice(&bytes).map_err(|_| TwilioError::ParsingError)
@@ -176,16 +186,16 @@ impl Client {
 
     pub async fn respond_to_webhook<T: FromMap, F>(
         &self,
-        req: hyper::Request<Body>,
+        req: hyper::Request<Incoming>,
         mut logic: F,
-    ) -> hyper::Response<Body>
+    ) -> hyper::Response<Full<Bytes>>
     where
         F: FnMut(T) -> twiml::Twiml,
     {
         let o: T = match self.parse_request::<T>(req).await {
             Ok(obj) => *obj,
             Err(_) => {
-                let mut res = hyper::Response::new(Body::from("Error.".as_bytes()));
+                let mut res = hyper::Response::new(Full::from("Error."));
                 *res.status_mut() = StatusCode::BAD_REQUEST;
                 return res;
             }
@@ -194,7 +204,7 @@ impl Client {
         let t = logic(o);
         let body = t.as_twiml();
         let len = body.len() as u64;
-        let mut res = hyper::Response::new(Body::from(body));
+        let mut res = hyper::Response::new(Full::from(body));
         res.headers_mut().typed_insert(headers::ContentType::xml());
         res.headers_mut().typed_insert(headers::ContentLength(len));
         res

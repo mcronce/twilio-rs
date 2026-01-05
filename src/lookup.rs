@@ -4,8 +4,7 @@ use arrayvec::{ArrayString, ArrayVec};
 use bitflags::bitflags;
 use compact_str::CompactString;
 use headers::HeaderMapExt;
-use hyper::body::HttpBody;
-use hyper::Body;
+use http_body_util::{BodyExt as _, Either, Empty};
 use isocountry::CountryCode;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
@@ -19,14 +18,16 @@ impl Client {
             "https://lookups.twilio.com/v2/PhoneNumbers/+{number}?Fields=line_type_intelligence",
         );
 
-        let mut req = hyper::Request::get(url).body(Body::empty()).unwrap();
+        let mut req = hyper::Request::get(url)
+            .body(Either::Left(Empty::new()))
+            .unwrap();
         req.headers_mut().typed_insert(self.auth_header.clone());
 
         let resp = self
             .http_client
             .request(req)
             .await
-            .map_err(TwilioError::NetworkError)?;
+            .map_err(TwilioError::RequestError)?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -37,7 +38,7 @@ impl Client {
             .into_body()
             .collect()
             .await
-            .map_err(TwilioError::NetworkError)
+            .map_err(TwilioError::ReadResponseError)
             .and_then(|body| {
                 let bytes = body.to_bytes();
                 serde_json::from_slice(&bytes).map_err(|_| TwilioError::ParsingError)
