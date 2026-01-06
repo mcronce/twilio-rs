@@ -77,6 +77,18 @@ impl Error for TwilioError {
     }
 }
 
+impl TwilioError {
+    #[inline]
+    pub fn is_retryable(&self) -> bool {
+        match self {
+            Self::RequestError(_) => true,
+            Self::ReadResponseError(_) => true,
+            Self::HTTPError(s) => s.is_server_error(),
+            _ => false,
+        }
+    }
+}
+
 pub trait FromMap {
     fn from_map(m: BTreeMap<String, String>) -> Result<Box<Self>, TwilioError>;
 }
